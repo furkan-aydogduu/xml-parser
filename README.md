@@ -37,8 +37,8 @@ There is only windows build support for now.
   ```php
       php -f builder_win.php
   ```
-- The output release of the library will be placed in the output folder of the source project. <br>
-Note: The builder script generates the new file with the library name and version information taken from the LIBRARY_NAME and LIBRARY_VERSION definitions that are declared in the [XML Parser](/org/xmlparser/parser/xml_parser.php)  class.
+- The output release of the library will be placed in the <code>[project folder]/org/xmlparser/output/</code> folder of the source project. <br>
+Note: The builder script generates the new file with the library name and version information taken from the <code>LIBRARY_NAME</code> and <code>LIBRARY_VERSION</code> definitions that are declared in the [XML Parser](/org/xmlparser/parser/xml_parser.php)  class.
 
 #### Run Instruction:
 You can use the following instructions to test the source project directly with the input of test xml files after you make changes on the project: 
