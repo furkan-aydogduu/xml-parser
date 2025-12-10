@@ -42,16 +42,16 @@ Note: The builder script generates the new file with the library name and versio
 
 #### Run Instruction:
 You can use the following instructions to test the source project directly with the input of test xml files after you make changes on the project: 
-- In the cli, go to the $\large{\textbf{\textcolor{orange}{[project folder]/org/xmlparser/}}}$  directory of the source project
+- In the cli, go to the <code>[project folder]/org/xmlparser/</code>  directory of the source project
 - Run the following command:
   ```php
       php -f run.php test_input5.html
   ```
-Note: The input test file (e.g. test_input5.html) must be placed in the $\large{\textbf{\textcolor{orange}{[project folder]/org/xmlparser/test/test-cases/}}}$  folder to make it available for testing purposes.
+Note: The input test file (e.g. test_input5.html) must be placed in the <code>[project folder]/org/xmlparser/test/test-cases/</code>  folder to make it available for testing purposes.
 
 #### Testing the project:
-You can use the $\large{\textbf{\textcolor{orange}{[project folder]/org/xmlparser/test/}}}$ test_run.php script for alternative testing purposes. You can use the following command from the $\large{\textbf{\textcolor{orange}{[project folder]/org/xmlparser/}}}$ directory to use this script:
+You can use the <code>[project folder]/org/xmlparser/test/test_run.php</code> script for alternative testing purposes. You can use the following command from the <code>[project folder]/org/xmlparser/</code> directory to use this script:
  ```php
       php -f test/test_run.php test_input5.html
   ```
-Note: The input test file (e.g. test_input5.html) must also be placed in the $\large{\textbf{\textcolor{orange}{[project folder]/org/xmlparser/test/test-cases/}}}$ folder to make it available for testing purposes.
+Note: The input test file (e.g. test_input5.html) must also be placed in the <code>[project folder]/org/xmlparser/test/test-cases/</code> folder to make it available for testing purposes.
