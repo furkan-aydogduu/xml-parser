@@ -10,8 +10,8 @@ This parser takes an xml document as input in string format and validates it aga
 - [Comment Sections](https://www.w3.org/TR/xml/#sec-comments)
 
 #### Library Usage:
-- Download the <b>xmlparser__[version].phar</b>  from the repository.
-- Place the downloaded <b>phar</b> file in your project structure.
+- Download the <code>xmlparser__[version].phar</code>  from the repository.
+- Place the downloaded <code>phar</code> file in your project structure.
 - Use the following code to use the library in your project:
     ```php
     require_once dirname(__FILE__) . "/xmlparser__[version].phar";  //change the directory definition of the library in the require_once command for your project requirements
@@ -32,8 +32,8 @@ This parser takes an xml document as input in string format and validates it aga
 #### Build Instruction:
 There is only windows build support for now.
 ##### For Windows Builds:
-- In the cli, go to the directory in the source project where the builder_win.php exists.
-- Run the following command to get a new <b>phar</b> build from the library source project:
+- In the cli, go to the directory in the source project where the <code>builder_win.php</code> exists.
+- Run the following command to get a new <code>phar</code> build from the library source project:
   ```php
       php -f builder_win.php
   ```
