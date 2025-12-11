@@ -9,6 +9,7 @@ define("START_START_TAG",	"<");
 define("START_END_TAG",		">");
 define("END_START_TAG",		"</");
 define("END_END_TAG",		">");
+define("EMPTY_END_TAG",		"/>");
 define("XML_START_TAG",		"<?");
 define("XML_END_TAG",		"?>");
 define("XML",				"xml");
@@ -19,6 +20,7 @@ define("DOUBLE_QUOTE",		"\"");
 
 require_once __ROOT__ . "/flow/model/attributetagword.php";
 require_once __ROOT__ . "/flow/model/end_end_tag.php";
+require_once __ROOT__ . "/flow/model/empty_end_tag.php";
 require_once __ROOT__ . "/flow/model/end_start_tag.php";
 require_once __ROOT__ . "/flow/model/equals.php";
 require_once __ROOT__ . "/flow/model/freeword.php";
@@ -76,6 +78,10 @@ class FlowController {
     
     private function is_end_end_tag($flow, $hasEndStartTag, $hasTagWord){
         return $hasEndStartTag && $hasTagWord && $flow === END_END_TAG;
+    }
+	
+	private function is_empty_end_tag($flow, $hasStartStartTag, $hasTagWord){
+        return $hasStartStartTag && $hasTagWord && $flow === EMPTY_END_TAG;
     }
     
     private function is_xml_start_tag($flow){
@@ -338,6 +344,19 @@ class FlowController {
             
             return true;
         }
+		
+		else if($this -> is_empty_end_tag($this -> semiStatefulDataFlow, $this -> hasStartStartTag, $this -> hasTagWord)){
+            $flowElement = new EmptyEndTag($this -> semiStatefulDataFlow);
+            $this -> hasStartStartTag = false;
+			$this -> hasTagWord = false;
+            $this -> hasEndEndTag = true;
+			
+            array_push($this -> flowPipe, $flowElement);
+			//echo "end-end ".$this -> semiStatefulDataFlow ."\n";
+            $this -> clearSemiStatefulDataFlow();
+            
+            return true;
+        }
         
         else if($this -> is_equals($this -> semiStatefulDataFlow, $this -> hasStartStartTag, $this -> hasXMLStartTag,
             $this -> hasTagWord, $this -> hasAttributeTagWord, $this -> hasXml)){
@@ -490,6 +509,10 @@ class FlowController {
 		}
 		
 		else if($this -> is_end_end_tag($flow, $this -> hasEndStartTag, $this -> hasTagWord)){
+			return true;
+		}
+		
+		else if($this -> is_empty_end_tag($flow, $this -> hasStartStartTag, $this -> hasTagWord)){
 			return true;
 		}
 		

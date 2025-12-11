@@ -17,6 +17,10 @@ class DataFlow extends Flow{
 									StartStartTag::class, TagWord::class, array(AttributeFlow::class), StartEndTag::class, 
 										array(DataFlow::class, TextFlow::class, CDataFlow::class, CommentFlow::class),
 									EndStartTag::class, TagWord::class, EndEndTag::class
+								),
+								
+								array(
+									StartStartTag::class, TagWord::class, array(AttributeFlow::class), EmptyEndTag::class
 								)
 						 );
 

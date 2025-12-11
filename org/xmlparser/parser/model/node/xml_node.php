@@ -7,34 +7,38 @@ class XMLNode extends Node{
    
     public function valid(...$params){
 		
-		$isVersionAttributeValidated = false;
-		$isEncodingAttributeValidated = false;
-		$isStandaloneAttributeValidated = false;
+		$isVersionAttributeValidated = true;
+		$isEncodingAttributeValidated = true;
+		$isStandaloneAttributeValidated = true;
 		
 		foreach ($this -> getAttributeNodes() as $attributeNode){
+
 			if(strtolower($attributeNode -> getLabel()) === 'version'){
-				if($attributeNode -> getValue() !== null){
-					$isVersionAttributeValidated = true;
+				if($attributeNode -> getValue() === null){
+					$isVersionAttributeValidated = false;
 				}
 			}
 			
 			else if(strtolower($attributeNode -> getLabel()) === 'encoding'){
-				if($attributeNode -> getValue() !== null){
-					$isEncodingAttributeValidated = true;
+				if($attributeNode -> getValue() === null){
+					$isEncodingAttributeValidated = false;
 				}
 			}
 			
 			else if(strtolower($attributeNode -> getLabel()) === 'standalone'){
-				if($attributeNode -> getValue() !== null){
-					$isStandaloneAttributeValidated = true;
+				if($attributeNode -> getValue() === null){
+					$isStandaloneAttributeValidated = false;
 				}
+			}
+			
+			else{
+				return false;
 			}
         }
 		
 		return $isVersionAttributeValidated
 			&& $isEncodingAttributeValidated
 			&& $isStandaloneAttributeValidated
-			&& count($this -> getAttributeNodes()) === 3
 			&& strtoLower($this -> getLabel()) === XML;
 	}
 }
