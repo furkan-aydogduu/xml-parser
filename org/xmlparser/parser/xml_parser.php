@@ -4,7 +4,7 @@ namespace org\xmlparser\parser;
 define('__ROOT__', dirname(__FILE__));
 
 define("LIBRARY_NAME", "xmlparser");
-define("LIBRARY_VERSION", "1.0");
+define("LIBRARY_VERSION", "1.1");
 
 require_once __ROOT__ . "/flow/controller/flow_controller.php";
 require_once __ROOT__ . "/flow/controller/flow_pipe_controller.php";
