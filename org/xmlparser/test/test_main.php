@@ -2,7 +2,7 @@
 namespace org\xmlparser\test;
 
 require_once dirname(dirname(__FILE__)) . "/utilities/reader/xml_file_reader.php";
-require_once dirname(dirname(__FILE__)) . "/output/xmlparser__v1_0.phar";
+require_once dirname(dirname(__FILE__)) . "/output/xmlparser__v1_1.phar";
 
 use org\xmlparser\utilities\reader\XMLFileReader;
 use org\xmlparser\parser\XMLParser;
