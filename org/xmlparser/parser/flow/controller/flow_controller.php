@@ -1,27 +1,56 @@
 <?php 
 namespace org\xmlparser\parser;
 
-define("CDATA_START_TAG",	"<![cdata[");
-define("CDATA_END_TAG",		"]]>");
-define("COMMENT_START_TAG",	"<!--");
-define("COMMENT_END_TAG",	"-->");
-define("START_START_TAG",	"<");
-define("START_END_TAG",		">");
-define("END_START_TAG",		"</");
-define("END_END_TAG",		">");
-define("EMPTY_END_TAG",		"/>");
-define("XML_START_TAG",		"<?");
-define("XML_END_TAG",		"?>");
-define("XML",				"xml");
-define("EMPTY_STRING",		"");
-define("EQUALS",			"=");
-define("SINGLE_QUOTE",		"'");
-define("DOUBLE_QUOTE",		"\"");
+define("CDATA_START_TAG",				"<![cdata[");
+define("CDATA_END_TAG",					"]]>");
+define("COMMENT_START_TAG",				"<!--");
+define("COMMENT_END_TAG",				"-->");
+define("START_START_TAG",				"<");
+define("START_END_TAG",					">");
+define("END_START_TAG",					"</");
+define("END_END_TAG",					">");
+define("EMPTY_END_TAG",					"/>");
+define("XML_START_TAG",					"<?");
+define("XML_END_TAG",					"?>");
+define("XML",							"xml");
+define("EMPTY_STRING",					"");
+define("EQUALS",						"=");
+define("SINGLE_QUOTE",					"'");
+define("DOUBLE_QUOTE",					"\"");
+define("ESCAPE_START_TAG",				"&");
+define("ESCAPE_END_TAG",				";");
+
+define("ESCAPED_AMPERSAND",				"&amp;");
+define("ESCAPED_LEFT_ANGLE_BRACKET",	"&lt;");
+define("ESCAPED_RIGHT_ANGLE_BRACKET",	"&gt;");
+define("ESCAPED_SINGLE_QUOTE",			"&apos;");
+define("ESCAPED_DOUBLE_QUOTE",			"&quote;");
+
+
+define("VALID_START_CHAR_CODE_RANGES", array(
+	(object)['start' => 58, 'end' => 58],		// :
+	(object)['start' => 65,'end' => 90], 		//A-Z
+	(object)['start' => 95, 'end' => 95], 		//_
+	(object)['start' => 97, 'end' => 122],		//a-z
+	(object)['start' => 192, 'end' => 214], (object)['start' => 216, 'end' => 246], (object)['start' => 248, 'end' => 767], (object)['start' => 880, 'end' => 893],
+	(object)['start' => 895, 'end' => 8191], (object)['start' => 8204, 'end' => 8205], (object)['start' => 8304, 'end' => 8591], (object)['start' => 11264, 'end' => 12271],
+	(object)['start' => 12289, 'end' => 55295], (object)['start' => 63744, 'end' => 64975],	(object)['start' => 65008, 'end' => 65533],  (object)['start' => 65536, 'end' => 983039]
+));
+
+define("VALID_NAME_CHAR_CODE_RANGES", array(
+	...VALID_START_CHAR_CODE_RANGES,
+	(object)['start' => 45, 'end' => 45],		//-
+	(object)['start' => 46,'end' => 46], 		//.
+	(object)['start' => 48, 'end' => 57], 		//0-9
+	(object)['start' => 183, 'end' => 183], (object)['start' => 768, 'end' => 879], (object)['start' => 8255, 'end' => 8256]
+));
 
 require_once __ROOT__ . "/flow/model/attributetagword.php";
 require_once __ROOT__ . "/flow/model/end_end_tag.php";
 require_once __ROOT__ . "/flow/model/empty_end_tag.php";
 require_once __ROOT__ . "/flow/model/end_start_tag.php";
+require_once __ROOT__ . "/flow/model/escape_start_tag.php";
+require_once __ROOT__ . "/flow/model/escape_end_tag.php";
 require_once __ROOT__ . "/flow/model/equals.php";
 require_once __ROOT__ . "/flow/model/freeword.php";
 require_once __ROOT__ . "/flow/model/quote.php";
@@ -39,26 +68,51 @@ require_once __ROOT__ . "/flow/model/unreasonableword.php";
 
 class FlowController {
 
-	private $hasCDataStartTag = false;
-	private $hasCommentStartTag = false;
-    private $hasStartStartTag = false;
-    private $hasEndStartTag = false;
-    private $hasEndEndTag = false;
-    private $hasStartEndTag = false;
-    private $hasXMLStartTag = false;
-    private $hasXMLEndTag = false;
-    private $hasXml = false;
-    private $hasTagWord = false;
-    private $hasAttributeTagWord = false;
-    private $hasEquals = false;
-    private $hasQuote = false;
-	private $hasWhitespace = false;
+	private $hasCDataStartTag;
+	private $hasEscapeStartTag;
+	private $hasCommentStartTag;
+    private $hasStartStartTag;
+    private $hasEndStartTag;
+    private $hasEndEndTag;
+    private $hasStartEndTag;
+    private $hasXMLStartTag;
+    private $hasXMLEndTag;
+    private $hasXml;
+    private $hasTagWord;
+    private $hasAttributeTagWord;
+    private $hasEquals;
+    private $hasQuote;
+	private $hasWhitespace;
+	
+    private $semiStatefulDataFlow;
+    private $semiStatefulDataFlowFuture;
+    private $currentQuote;
+	
+	private array $flowPipe;
+	
+	public function __construct(){
+		$this -> hasCDataStartTag = false;
+		$this -> hasEscapeStartTag = false;
+		$this -> hasCommentStartTag = false;
+		$this -> hasStartStartTag = false;
+		$this -> hasEndStartTag = false;
+		$this -> hasEndEndTag = false;
+		$this -> hasStartEndTag = false;
+		$this -> hasXMLStartTag = false;
+		$this -> hasXMLEndTag = false;
+		$this -> hasXml = false;
+		$this -> hasTagWord = false;
+		$this -> hasAttributeTagWord = false;
+		$this -> hasEquals = false;
+		$this -> hasQuote = false;
+		$this -> hasWhitespace = false;
+		
+		$this -> semiStatefulDataFlow = EMPTY_STRING;
+		$this -> semiStatefulDataFlowFuture = EMPTY_STRING;
+		$this -> currentQuote = EMPTY_STRING;
 
-    private $flowPipe = array();
-    
-    private $semiStatefulDataFlow = EMPTY_STRING;
-    private $semiStatefulDataFlowFuture = EMPTY_STRING;
-    private $currentQuote = EMPTY_STRING;
+        $this -> flowPipe = array();
+    }
 	
 	private function is_white_space($flow){
         return strlen($flow) > 0 && strlen(trim($flow)) === 0;
@@ -68,8 +122,8 @@ class FlowController {
         return $flow === START_START_TAG;
     }
     
-    private function is_start_end_tag($flow, $hasStartStartTag, $hasTagWord){
-        return $hasStartStartTag && $hasTagWord && $flow === START_END_TAG;
+    private function is_start_end_tag($flow, $hasStartStartTag, $hasTagWord, $hasQuote){
+        return !$hasQuote && $hasStartStartTag && $hasTagWord && $flow === START_END_TAG;
     }
     
     private function is_end_start_tag($flow){
@@ -80,16 +134,16 @@ class FlowController {
         return $hasEndStartTag && $hasTagWord && $flow === END_END_TAG;
     }
 	
-	private function is_empty_end_tag($flow, $hasStartStartTag, $hasTagWord){
-        return $hasStartStartTag && $hasTagWord && $flow === EMPTY_END_TAG;
+	private function is_empty_end_tag($flow, $hasStartStartTag, $hasTagWord, $hasQuote){
+        return !$hasQuote && $hasStartStartTag && $hasTagWord && $flow === EMPTY_END_TAG;
     }
     
     private function is_xml_start_tag($flow){
         return $this -> isPipeEmpty() && $flow === XML_START_TAG;
     }
     
-    private function is_xml_end_tag($flow, $hasXml){
-        return $hasXml && $flow === XML_END_TAG;
+    private function is_xml_end_tag($flow, $hasXml, $hasQuote){
+        return !$hasQuote && $hasXml && $flow === XML_END_TAG;
     }
     
     private function is_xml($flow, $hasXMLStartTag, $hasXml){
@@ -112,8 +166,8 @@ class FlowController {
         return $hasCommentStartTag && substr($flow, -(strlen(COMMENT_END_TAG))) === COMMENT_END_TAG;
     }
 
-    private function is_equals($flow, $hasStartStartTag, $hasXmlStartTag, $hasTagWord, $hasAttributeTagWord, $hasXml){
-        return ($hasStartStartTag || $hasXmlStartTag) && ($hasTagWord || $hasXml) && $hasAttributeTagWord && $flow === EQUALS;
+    private function is_equals($flow, $hasStartStartTag, $hasXmlStartTag, $hasTagWord, $hasAttributeTagWord, $hasXml, $hasQuote){
+        return ($hasStartStartTag || $hasXmlStartTag) && ($hasTagWord || $hasXml) && $hasAttributeTagWord && !$hasQuote && $flow === EQUALS;
     }
     
     private function is_quote($flow, $hasEquals, $hasStartEndTag, $hasXmlEndTag){
@@ -124,10 +178,22 @@ class FlowController {
 				($this -> hasQuote && ($flow === $this -> currentQuote))
 			);
     }
-    
+	
+	private function is_escape_start_tag($flow, $hasEscapeStartTag){
+        return !$hasEscapeStartTag && $flow === ESCAPE_START_TAG;
+    }
+	
+	private function is_escape_end_tag($flow, $hasEscapeStartTag){
+        return $hasEscapeStartTag && substr($flow, -(strlen(ESCAPE_END_TAG))) === ESCAPE_END_TAG;
+    }
+	
+	private function is_escapeword($flow, $hasEscapeStartTag){
+        return $hasEscapeStartTag && strpos($flow, ESCAPE_END_TAG) === false && strpos($flow, ESCAPE_START_TAG) === false;
+    }
+	
     private function is_tagword($flow, $hasStartStartTag, $hasEndStartTag, $hasTagWord){
         return !$hasTagWord && ($hasStartStartTag || $hasEndStartTag)
-        && $this -> isFlowCompliesWithNamingStandard($flow);
+        && $this -> isFlowCompliesWithTagwordNamingStandard($flow);
     }
     
     private function is_attributetagword($flow, $hasStartStartTag, $hasXMLStartTag, $hasTagWord,
@@ -137,7 +203,7 @@ class FlowController {
             && ($hasTagWord || $hasXml)
 			&& $hasWhitespace
             && !$hasStartEndTag && !$hasXMLEndTag && !$hasQuote
-            && $this -> isFlowCompliesWithNamingStandard($flow);
+            && $this -> isFlowCompliesWithTagwordNamingStandard($flow);
     }
     
     /////////////////////////////////////////////////////////////////
@@ -182,8 +248,10 @@ class FlowController {
 	}
 	
     private function internalSenseFlow($flow, $nextFlow){
-
+		
         $this -> semiStatefulDataFlow .= $flow;
+		
+		$reachedEndOfTheFlow = false;
 		
 		if($nextFlow !== null){
 			$this -> semiStatefulDataFlowFuture = $this -> semiStatefulDataFlow .$nextFlow;
@@ -193,6 +261,7 @@ class FlowController {
 			}
 		}
 		else{
+			$reachedEndOfTheFlow = true;
 			$this -> semiStatefulDataFlowFuture = $this -> semiStatefulDataFlow;
 		}
 		
@@ -274,7 +343,7 @@ class FlowController {
             return true;
         }
         
-        else if($this -> is_xml_end_tag($this -> semiStatefulDataFlow, $this -> hasXml)){
+        else if($this -> is_xml_end_tag($this -> semiStatefulDataFlow, $this -> hasXml, $this -> hasQuote)){
             $flowElement = new XmlEndTag($this -> semiStatefulDataFlow);
             $this -> hasXml = false;
             $this -> hasXMLStartTag = false;
@@ -309,7 +378,7 @@ class FlowController {
             return true;
         }
         
-        else if($this -> is_start_end_tag($this -> semiStatefulDataFlow, $this -> hasStartStartTag, $this -> hasTagWord)){
+        else if($this -> is_start_end_tag($this -> semiStatefulDataFlow, $this -> hasStartStartTag, $this -> hasTagWord, $this -> hasQuote)){
             $flowElement = new StartEndTag($this -> semiStatefulDataFlow);
             $this -> hasStartEndTag = true;
             $this -> hasStartStartTag = false;
@@ -345,7 +414,7 @@ class FlowController {
             return true;
         }
 		
-		else if($this -> is_empty_end_tag($this -> semiStatefulDataFlow, $this -> hasStartStartTag, $this -> hasTagWord)){
+		else if($this -> is_empty_end_tag($this -> semiStatefulDataFlow, $this -> hasStartStartTag, $this -> hasTagWord, $this -> hasQuote)){
             $flowElement = new EmptyEndTag($this -> semiStatefulDataFlow);
             $this -> hasStartStartTag = false;
 			$this -> hasTagWord = false;
@@ -359,7 +428,7 @@ class FlowController {
         }
         
         else if($this -> is_equals($this -> semiStatefulDataFlow, $this -> hasStartStartTag, $this -> hasXMLStartTag,
-            $this -> hasTagWord, $this -> hasAttributeTagWord, $this -> hasXml)){
+            $this -> hasTagWord, $this -> hasAttributeTagWord, $this -> hasXml, $this -> hasQuote)){
             $flowElement = new Equals($this -> semiStatefulDataFlow);
             $this -> hasEquals = true;
             array_push($this -> flowPipe, $flowElement);
@@ -389,7 +458,39 @@ class FlowController {
             
             return true;
         }
-        
+		
+		else if($this -> is_escape_start_tag($flow, $this -> hasEscapeStartTag)){
+			$flowElement = new EscapeStartTag($this -> semiStatefulDataFlow);
+            
+            $this -> hasEscapeStartTag = true;
+   
+            array_push($this -> flowPipe, $flowElement);
+			//echo "escapestarttag ".$this -> semiStatefulDataFlow ."\n";
+            $this -> clearSemiStatefulDataFlow();
+            
+            return true;
+		}
+		
+		else if($this -> is_escape_end_tag($flow, $this -> hasEscapeStartTag)){
+			
+			$remainingEscapeContent = substr($this -> semiStatefulDataFlow, 0, -strlen(ESCAPE_END_TAG));
+			
+			if(strlen($remainingEscapeContent) > 0){
+				$remainingFlowContentElement = new FreeWord($remainingEscapeContent);
+				array_push($this -> flowPipe, $remainingFlowContentElement);
+				//echo "freeword ".$remainingEscapeContent ."\n";
+			}
+			
+            $flowElement = new EscapeEndTag(ESCAPE_END_TAG);
+            $this -> hasEscapeStartTag = false;
+			
+            array_push($this -> flowPipe, $flowElement);
+			//echo "escapeendtag ". ";" ."\n";
+            $this -> clearSemiStatefulDataFlow();
+            
+            return true;
+		}
+		
         else if($this -> is_tagword($this -> semiStatefulDataFlow, $this -> hasStartStartTag, $this -> hasEndStartTag, $this -> hasTagWord)){
             $flowElement = new TagWord($this -> semiStatefulDataFlow);
             $this -> hasTagWord = true;
@@ -413,9 +514,20 @@ class FlowController {
             
             return true;
         }
+		
+		else if($this -> appearsToBeAttributeTextFlow($flow, $this -> hasQuote, $this -> hasEscapeStartTag)){
+			$flowElement = new FreeWord($this -> semiStatefulDataFlow);
+			array_push($this -> flowPipe, $flowElement);
+			
+			//echo "attributefreeword ".$this -> semiStatefulDataFlow ."\n";
+			$this -> clearSemiStatefulDataFlow();
+			return true;
+		}
         
 		else if($this -> appearsToBeTextFlow($this -> semiStatefulDataFlow, $this -> hasCommentStartTag, $this -> hasCDataStartTag, 
-											 $this -> hasStartEndTag, $this -> hasEndEndTag, $this -> hasXMLEndTag, $this -> hasQuote)){
+											 $this -> hasStartEndTag, $this -> hasEndEndTag, $this -> hasXMLEndTag, 
+											 $this -> hasEscapeStartTag
+											 )){
 			
 			/*
 				Since the code stepped in here because of no possible future sense, we have a valid 
@@ -424,7 +536,7 @@ class FlowController {
 				because some parts of the forbidden tag will not be included in the current flow since we catch that in the future senses.
 				so we need to check the future flow again against forbidden tag rules in here.
 			*/
-			if(!$this -> flowContainsForbiddenTags($this -> semiStatefulDataFlowFuture)){
+			if(!$this -> flowContainsForbiddenSequence($this -> semiStatefulDataFlowFuture, $reachedEndOfTheFlow)){
 				$flowElement = new FreeWord($this -> semiStatefulDataFlow);
 				array_push($this -> flowPipe, $flowElement);
 				
@@ -487,7 +599,7 @@ class FlowController {
 			return true;
 		}
 		
-		else if($this -> is_xml_end_tag($flow, $this -> hasXml)){
+		else if($this -> is_xml_end_tag($flow, $this -> hasXml, $this -> hasQuote)){
 			return true;
 		}
 		
@@ -500,7 +612,7 @@ class FlowController {
 			return true;
 		}
 		
-		else if($this -> is_start_end_tag($flow, $this -> hasStartStartTag, $this -> hasTagWord)){
+		else if($this -> is_start_end_tag($flow, $this -> hasStartStartTag, $this -> hasTagWord, $this -> hasQuote)){
 			return true;
 		}
 		
@@ -512,15 +624,27 @@ class FlowController {
 			return true;
 		}
 		
-		else if($this -> is_empty_end_tag($flow, $this -> hasStartStartTag, $this -> hasTagWord)){
+		else if($this -> is_empty_end_tag($flow, $this -> hasStartStartTag, $this -> hasTagWord, $this -> hasQuote)){
 			return true;
 		}
 		
-		else if($this -> is_equals($flow, $this -> hasStartStartTag, $this -> hasXMLStartTag, $this -> hasTagWord, $this -> hasAttributeTagWord, $this -> hasXml)){
+		else if($this -> is_equals($flow, $this -> hasStartStartTag, $this -> hasXMLStartTag, $this -> hasTagWord, $this -> hasAttributeTagWord, $this -> hasXml, $this -> hasQuote)){
 			return true;
 		}
 		
 		else if($this -> is_quote($flow, $this -> hasEquals, $this -> hasStartEndTag, $this -> hasXMLEndTag)){
+			return true;
+		}
+		
+		else if($this -> is_escape_start_tag($flow, $this -> hasEscapeStartTag)){
+			return true;
+		}
+		
+		else if($this -> is_escape_end_tag($flow, $this -> hasEscapeStartTag)){
+			return true;
+		}
+		
+		else if($this -> is_escapeword($flow, $this -> hasEscapeStartTag)){
 			return true;
 		}
 		
@@ -534,15 +658,20 @@ class FlowController {
 			return true;
 		}
 		
+		else if($this -> appearsToBeAttributeTextFlow($flow, $this -> hasQuote, $this -> hasEscapeStartTag)){
+			return true;
+		}
+		
 		else if($this -> appearsToBeTextFlow($flow, $this -> hasCommentStartTag, $this -> hasCDataStartTag, $this -> hasStartEndTag, 
-													$this -> hasEndEndTag, $this -> hasXMLEndTag, $this -> hasQuote)){
+													$this -> hasEndEndTag, $this -> hasXMLEndTag, $this -> hasEscapeStartTag
+													)){
 			return true;
 		}
 		
 		return false;
 	}
     
-    private function isFlowCompliesWithNamingStandard($flow){
+    private function isFlowCompliesWithTagwordNamingStandard($flow){
         $splittedWord = str_split($flow);
         
 		$flowLength = count($splittedWord);
@@ -551,51 +680,57 @@ class FlowController {
 			$chr = $splittedWord[$i];
 			$asciiCodeOfFlow = ord($chr);
 			
-			if($i === 0){  //tag words or attribute tag words can only start with ascii characters defined below
-				if( !(
-					$asciiCodeOfFlow === 58 // : colon character
-					|| $asciiCodeOfFlow === 95 // _ underscore character
-					|| ($asciiCodeOfFlow >= 65 && $asciiCodeOfFlow <= 90) //A-Z
-					|| ($asciiCodeOfFlow >= 97 && $asciiCodeOfFlow <= 122) //a-z
-					)
-				){  
-					return false;
-				}
-			}
+			$valid = $this -> validToBeNameOfTheTagword($asciiCodeOfFlow, $i);
 			
-			if(!($asciiCodeOfFlow >= 48 && $asciiCodeOfFlow <=57)  // 0-9
-                && !($asciiCodeOfFlow >= 65 && $asciiCodeOfFlow <= 90)  //A-Z
-                && !($asciiCodeOfFlow >= 97 && $asciiCodeOfFlow <= 122)  //a-z
-                && $asciiCodeOfFlow !== 46  //.(dot) character
-				&& $asciiCodeOfFlow !== 45  // -(hypen) character
-				&& $asciiCodeOfFlow !== 58 // : colon character
-				&& $asciiCodeOfFlow !== 95 // _ underscore character
-			){
-                    return false;
-            }
+			if(!$valid){
+				return false;
+			}
 		}
 		
         return true;
     }
-    
-    private function flowContainsQuote($flow){
-		return strpos($flow, $this -> currentQuote) !== false; 
-    }
-    
-	//this method is for general check up of incoming text flow that must not contain certain flow starting tags or forbidden tags
-    private function flowContainsAnotherFlowStartingOrForbiddenTags($flow){
-		
-        return (strpos($flow, START_START_TAG) !== false 
-            || strpos($flow, XML_START_TAG) !== false 
-            || strpos($flow, END_START_TAG) !== false
-			|| $this -> flowContainsForbiddenTags($flow)
-			);
-    }
 
-	private function flowContainsForbiddenTags($flow){
-		return strpos($flow, CDATA_END_TAG) !== false;
+	private function validToBeNameOfTheTagword($asciiCodeOfFlow, $index){
+		
+		if($index === 0){
+			foreach(VALID_START_CHAR_CODE_RANGES as $range){
+				if($asciiCodeOfFlow >= $range -> start && $asciiCodeOfFlow <= $range -> end){
+					return true;
+				}
+			}
+		}
+		else{
+			foreach(VALID_NAME_CHAR_CODE_RANGES as $range){
+				if($asciiCodeOfFlow >= $range -> start && $asciiCodeOfFlow <= $range -> end){
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
     
+    private function flowValidToBeAttributeValue($flow){
+		return 
+			   strpos($flow, $this -> currentQuote) === false
+			&& strpos($flow, START_START_TAG) === false
+			&& strpos($flow, END_START_TAG) === false
+			&& strpos($flow, ESCAPE_START_TAG) === false;
+    }
+    
+	//this method is for general check up of incoming text flow that must not contain certain flow starting tags or forbidden sequences
+    private function flowValidToBeTextFlow($flow){
+		
+        return  strpos($flow, START_START_TAG) === false 
+             && strpos($flow, END_START_TAG) === false
+			 && strpos($flow, ESCAPE_START_TAG) === false
+			 && !$this -> flowContainsForbiddenSequence($flow, false);
+    }
+
+	private function flowContainsForbiddenSequence($flow, $reachedEndOfTheFlow){
+		return strpos($flow, CDATA_END_TAG) !== false;
+	}
+	
     private function clearSemiStatefulDataFlow(){
         $this -> semiStatefulDataFlow = EMPTY_STRING;
     }
@@ -613,12 +748,19 @@ class FlowController {
     }
   
 	private function appearsToBeTextFlow($flow, $hasCommentStartTag, $hasCDataStartTag, $hasStartEndTag, $hasEndEndTag, 
-												$hasXMLEndTag, $hasQuote){
+												$hasXMLEndTag, $hasEscapeStartTag
+												){
 		return $hasCDataStartTag || $hasCommentStartTag 
 			 || (
-					( ($hasStartEndTag || $hasEndEndTag || $hasXMLEndTag) || ($hasQuote && !$this -> flowContainsQuote($flow)) ) 
-						&& !$this -> flowContainsAnotherFlowStartingOrForbiddenTags($flow)
+					 (!$hasEscapeStartTag && ($hasStartEndTag || $hasEndEndTag || $hasXMLEndTag)) && $this -> flowValidToBeTextFlow($flow) 
+					
+					//|| ($hasQuote && $this -> flowValidToBeAttributeValue($flow)) 
+						
 				);
+    }
+	
+	private function appearsToBeAttributeTextFlow($flow, $hasQuote, $hasEscapeStartTag){
+		return !$hasEscapeStartTag && $hasQuote && $this -> flowValidToBeAttributeValue($flow);
     }
 	
 	private function appearsToBeCommentFlow($flow, $hasCommentStartTag){
@@ -718,6 +860,7 @@ class FlowController {
 	
 	private function internalFinalize(){
 		$this -> hasCDataStartTag = false;
+		$this -> hasEscapeStartTag = false;
 		$this -> hasCommentStartTag = false;
 		$this -> hasStartStartTag = false;
 		$this -> hasEndStartTag = false;
@@ -747,6 +890,8 @@ class FlowController {
 	
 	public function finalize(){
         unset($this -> flowPipe);
+		
+		$this -> flowPipe = array();
     }
 	
 	public function isSemiStatefulDataFlowEmpty(){

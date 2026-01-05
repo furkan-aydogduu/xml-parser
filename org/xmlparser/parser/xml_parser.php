@@ -4,7 +4,7 @@ namespace org\xmlparser\parser;
 define('__ROOT__', dirname(__FILE__));
 
 define("LIBRARY_NAME", "xmlparser");
-define("LIBRARY_VERSION", "1.1");
+define("LIBRARY_VERSION", "1.2");
 
 require_once __ROOT__ . "/flow/controller/flow_controller.php";
 require_once __ROOT__ . "/flow/controller/flow_pipe_controller.php";
@@ -12,9 +12,13 @@ require_once __ROOT__ . "/flow/controller/flow_pipe_controller.php";
 class XMLParser {
     
     private $xmlInputAsString;
-    
-    public function __construct($xmlInputAsString){
+    private $flowController;
+	private $flowPipeController;
+	
+    public function __construct($xmlInputAsString = ""){
         $this -> xmlInputAsString = $xmlInputAsString;
+		$this -> flowController = new FlowController();
+		$this -> flowPipeController = new FlowPipeController();
     }
     
     public function parseXMLAndConvertToDocument(){
@@ -30,26 +34,24 @@ class XMLParser {
 			
 			$flowStream = str_split($xmlInputAsString);
 			
-			$flowController = new FlowController();
-			
-			$isSenseSuccess = $flowController -> senseFlow($flowStream);
+			$isSenseSuccess = $this -> flowController -> senseFlow($flowStream);
 
-			//$this -> printFlowPipe($flowController -> getFlowPipe());
+			//$this -> printFlowPipe($this -> flowController -> getFlowPipe());
 			
-			//$flowController -> printSemiStatefulDataFlow();
+			//$this -> flowController -> printSemiStatefulDataFlow();
 			
 			if($isSenseSuccess){
-				$flowPipeController = new FlowPipeController($flowController -> getFlowPipe());
-				$xmlDocument = $flowPipeController -> generateXMLDocumentFromFlowPipe();
+				$this -> flowPipeController -> setFlowPipe($this -> flowController -> getFlowPipe());
+				$xmlDocument = $this -> flowPipeController -> generateXMLDocumentFromFlowPipe();
 			}
 		}
 		else{
-			echo "incorrect input format: " . gettype($xmlInputAsString) . " ! -> should be string";
+			echo "incorrect input format: " . gettype($xmlInputAsString) . " ! -> should be string\n";
 		}
         
 		//$this -> printNode($xmlDocument);
 		
-		$flowController -> finalize();
+		$this -> flowController -> finalize();
         return $xmlDocument;
     }
 	
@@ -123,6 +125,26 @@ class XMLParser {
 		}
 		
 		return $isPrintable;
+	}
+	
+	public function getNodeCount($node){
+		$totalCount = 1;
+		
+		if($node === null){
+			return false;
+		}
+		
+		$childCount = count($node -> getSubNodes());
+		
+		for($i = 0; $i < $childCount; $i++){
+			$totalCount = $totalCount + $this -> getNodeCount($node -> getSubNodes()[$i]);
+		}
+		
+		return $totalCount;
+	}
+	
+	public function setXMLInput($xmlInputAsString){
+		$this -> xmlInputAsString = $xmlInputAsString;
 	}
 }
 

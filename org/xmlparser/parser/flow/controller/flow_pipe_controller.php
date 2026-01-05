@@ -5,15 +5,17 @@ require_once __ROOT__ . "/flow/document_flow.php";
 require_once __ROOT__ . "/flow/attribute_flow.php";
 require_once __ROOT__ . "/flow/data_flow.php";
 require_once __ROOT__ . "/flow/text_flow.php";
+require_once __ROOT__ . "/flow/escape_flow.php";
 require_once __ROOT__ . "/flow/xml_flow.php";
 require_once __ROOT__ . "/flow/comment_flow.php";
 require_once __ROOT__ . "/flow/cdata_flow.php";
 
 class FlowPipeController {
     
-    private $flowPipe;
+    private array $flowPipe;
 	
     private static array $legacyStructuredFlows = array(
+			EscapeFlow::class,
 			TextFlow::class,
 			AttributeFlow::class,
 			DataFlow::class,
@@ -23,14 +25,16 @@ class FlowPipeController {
 			CommentFlow::class
 	);
     
-    public function __construct($flowPipe){
+    public function __construct($flowPipe = array()){
         $this -> flowPipe = $flowPipe;
     }
-    
+	
     public function generateXMLDocumentFromFlowPipe(){
         
         $this -> convertFlowPipeToStructuredDocumentFlow();
-      
+		
+		//$this -> printFlowPipe($this -> flowPipe);
+		
         //There must be only one xml document flow left in the flow pipe as it represents an xml structure
         if(count($this -> flowPipe) !== 1 || !is_a($this -> flowPipe[0], DocumentFlow::class)){
 			$this -> finalize();
@@ -145,6 +149,10 @@ class FlowPipeController {
     public function getFlowPipe(){
         return $this -> flowPipe;
     }
+	
+	public function setFlowPipe($flowPipe){
+        $this -> flowPipe = $flowPipe;
+    }
     
     private function flowContainsPipeElement($flowElement, $pipeElement){
         foreach ($flowElement as $subFlow){
@@ -157,6 +165,29 @@ class FlowPipeController {
 	
 	private function finalize(){
 		unset($this -> flowPipe);
+		
+		$this -> flowPipe = array();
+	}
+	
+	public function printFlowPipe($flowPipe){
+		
+		$pipeElementCount = count($flowPipe);
+		
+		echo "flow pipe element count: " . $pipeElementCount . "\n";
+		
+		for($i = 0; $i < $pipeElementCount; $i++){
+			echo "flow pipe: " . get_class($flowPipe[$i]) .  " ";
+			if(is_a($flowPipe[$i], FlowElement::class)){
+				echo $flowPipe[$i] -> getValue();	
+			}
+			echo "\n";
+		}
+		
+		if($pipeElementCount == 0){
+			echo "flow pipe: pipe is empty!\n";
+		}
+		
+		echo "-----------------\n";
 	}
     
 }

@@ -45,6 +45,12 @@ try
     {
         unlink($pharFilePath . '.gz');
     }
+	
+	if (file_exists($pharFilePath) || file_exists($pharFilePath . '.gz'))
+    {
+       echo "Error in library build: old phar file exists!" . PHP_EOL;
+	   exit;
+    }
 
     // create phar
     $phar = new Phar($pharFilePath);

@@ -7,8 +7,8 @@ require_once __ROOT__ . "/model/node/document_node.php";
 class DocumentFlow extends Flow{
  
 	public static array $flowPaths = array(
-								array(XMLFlow::class, DataFlow::class),
-								array(XMLFlow::class, CommentFlow::class, DataFlow::class),
+								//array(XMLFlow::class, DataFlow::class),
+								array(XMLFlow::class, array(CommentFlow::class), DataFlow::class),
 								array(DocumentFlow::class, CommentFlow::class)
 							);
 	
