@@ -5,6 +5,7 @@ define("CDATA_START_TAG",				"<![cdata[");
 define("CDATA_END_TAG",					"]]>");
 define("COMMENT_START_TAG",				"<!--");
 define("COMMENT_END_TAG",				"-->");
+define("DOUBLE_HYPEN",					"--");
 define("START_START_TAG",				"<");
 define("START_END_TAG",					">");
 define("END_START_TAG",					"</");
@@ -150,22 +151,139 @@ class FlowController {
         return !$hasXml && $hasXMLStartTag && strpos(XML, strtolower($flow)) !== false;
     }
 	
-	private function is_cdata_start_tag($flow, $hasCDataStartTag){
-        return !$hasCDataStartTag && strtolower($flow) === CDATA_START_TAG;
-    }
-	
-	private function is_cdata_end_tag($flow, $hasCDataStartTag){
-        return $hasCDataStartTag && substr($flow, -(strlen(CDATA_END_TAG))) === CDATA_END_TAG;
-    }
-	
 	private function is_comment_start_tag($flow, $hasCommentStartTag){
         return !$hasCommentStartTag && $flow === COMMENT_START_TAG;
     }
 	
 	private function is_comment_end_tag($flow, $hasCommentStartTag){
-        return $hasCommentStartTag && substr($flow, -(strlen(COMMENT_END_TAG))) === COMMENT_END_TAG;
+		return $hasCommentStartTag && substr($flow, -strlen(COMMENT_END_TAG)) === COMMENT_END_TAG;
     }
+	
+	private function appearsToBeCommentStartTag($flow, $hasCommentStartTag){
+		
+		if(!$hasCommentStartTag){
+			
+			$commentStartTagLength = strlen(COMMENT_START_TAG);
+			$flowDataLength = strlen($flow);
 
+			$i = 0;
+			$k = max($flowDataLength - strlen(COMMENT_START_TAG), 0);
+			for( ; $i < $commentStartTagLength && $k < $flowDataLength; $i++, $k++){
+				if($flow[$k] !== COMMENT_START_TAG[$i]){
+					break;
+				}
+			}
+			
+			if($i === $commentStartTagLength || $k === $flowDataLength){
+				return true;
+			}
+			
+			/*$commentStartTagLength = strlen(COMMENT_START_TAG);
+
+			$i = 1;
+			for( ; $i <= $commentStartTagLength; $i++){
+				$subCommentStartTag = substr(COMMENT_START_TAG, 0, $i);
+				
+				if(substr($flow, -$i) === $subCommentStartTag){
+					return true;
+				}
+			}*/
+		}
+
+		return false;
+	}
+	
+	private function appearsToBeCommentEndTag($flow, $hasCommentStartTag){
+		
+		if($hasCommentStartTag){
+			
+			$commentEndTagLength = strlen(COMMENT_END_TAG);
+
+			$i = $commentEndTagLength;
+			
+			for( ; $i > 0; $i--){
+				
+				$subCommentEndTag = substr(COMMENT_END_TAG, 0, $i);
+				
+				if(substr($flow, -$i) === $subCommentEndTag){
+					
+					if(strpos($flow, COMMENT_END_TAG) === false || $i === $commentEndTagLength){
+						return true;
+					}
+				}
+			}
+		}
+		
+		return false;
+    }
+	
+	private function is_cdata_start_tag($flow, $hasCDataStartTag){
+        return !$hasCDataStartTag && strtolower($flow) === CDATA_START_TAG;
+    }
+	
+	private function is_cdata_end_tag($flow, $hasCDataStartTag){
+		return $hasCDataStartTag && substr($flow, -strlen(CDATA_END_TAG)) === CDATA_END_TAG;
+    }
+	
+	private function appearsToBeCDataStartTag($flow, $hasCDataStartTag){
+		
+		if(!$hasCDataStartTag){
+			
+			$cDataStartTagLength = strlen(CDATA_START_TAG);
+			$flowDataLength = strlen($flow);
+			
+			$i = 0;
+			$k = max($flowDataLength - strlen(CDATA_START_TAG), 0);
+			
+			for( ; $i < $cDataStartTagLength && $k < $flowDataLength; $i++, $k++){
+				if(strtolower($flow[$k]) !== CDATA_START_TAG[$i]){
+					break;
+				}
+			}
+			
+			if($i === $cDataStartTagLength || $k === $flowDataLength){
+				return true;
+			}
+			
+			/*$cDataStartTagLength = strlen(CDATA_START_TAG);
+			
+			$i = 1;
+			for( ; $i <= $cDataStartTagLength; $i++){
+				$subCDataStartTag = substr(CDATA_START_TAG, 0, $i);
+				
+				if(substr(strtolower($flow), -$i) === $subCDataStartTag){
+					return true;
+				}
+			}*/
+		}
+		
+		return false;
+	}
+	
+	private function appearsToBeCDataEndTag($flow, $hasCDataStartTag){
+		
+		if($hasCDataStartTag){
+			
+			$cDataEndTagLength = strlen(CDATA_END_TAG);
+			
+			$i = $cDataEndTagLength;
+			
+			for( ; $i > 0; $i--){
+				
+				$subCDataEndTag = substr(CDATA_END_TAG, 0, $i);
+				
+				if(substr($flow, -$i) === $subCDataEndTag){
+					
+					if(strpos($flow, CDATA_END_TAG) === false || $i === $cDataEndTagLength){
+						return true;
+					}
+				}
+			}
+		}
+		
+		return false; 
+    }
+	
     private function is_equals($flow, $hasStartStartTag, $hasXmlStartTag, $hasTagWord, $hasAttributeTagWord, $hasXml, $hasQuote){
         return ($hasStartStartTag || $hasXmlStartTag) && ($hasTagWord || $hasXml) && $hasAttributeTagWord && !$hasQuote && $flow === EQUALS;
     }
@@ -250,9 +368,7 @@ class FlowController {
     private function internalSenseFlow($flow, $nextFlow){
 		
         $this -> semiStatefulDataFlow .= $flow;
-		
-		$reachedEndOfTheFlow = false;
-		
+
 		if($nextFlow !== null){
 			$this -> semiStatefulDataFlowFuture = $this -> semiStatefulDataFlow .$nextFlow;
 			
@@ -261,75 +377,15 @@ class FlowController {
 			}
 		}
 		else{
-			$reachedEndOfTheFlow = true;
 			$this -> semiStatefulDataFlowFuture = $this -> semiStatefulDataFlow;
 		}
 		
-        if($this -> is_white_space($this -> semiStatefulDataFlow)){
+		if($this -> is_white_space($this -> semiStatefulDataFlow)){
 			$this -> hasWhitespace = true;
 			
 			//echo "ws '".$this -> semiStatefulDataFlow ."'\n";
             $this -> clearSemiStatefulDataFlow();
             
-            return true;
-        }
-		
-		else if($this -> is_comment_start_tag($this -> semiStatefulDataFlow, $this -> hasCommentStartTag)){
-            $flowElement = new CommentStartTag($this -> semiStatefulDataFlow);
-            $this -> hasCommentStartTag = true;
-
-            array_push($this -> flowPipe, $flowElement);
-			//echo "comment-start ".$this -> semiStatefulDataFlow ."\n";
-            $this -> clearSemiStatefulDataFlow();
-
-            return true;
-        }
-		
-		else if($this -> is_comment_end_tag($this -> semiStatefulDataFlow, $this -> hasCommentStartTag)){
-			$remainingCommentContent = substr($this -> semiStatefulDataFlow, 0, -strlen(COMMENT_END_TAG));
-			
-			if(strlen($remainingCommentContent) > 0){
-				$remainingFlowContentElement = new FreeWord($remainingCommentContent);
-				array_push($this -> flowPipe, $remainingFlowContentElement);
-				//echo "freeword ".$remainingCommentContent ."\n";
-			}
-			
-            $flowElement = new CommentEndTag(COMMENT_END_TAG);
-            $this -> hasCommentStartTag = false;
-            array_push($this -> flowPipe, $flowElement);
-			//echo "comment-end "."-->" ."\n";
-            $this -> clearSemiStatefulDataFlow();
-
-            return true;
-        }
-		
-		else if($this -> is_cdata_start_tag($this -> semiStatefulDataFlow, $this -> hasCDataStartTag)){
-          
-			$flowElement = new CDataStartTag($this -> semiStatefulDataFlow);
-            $this -> hasCDataStartTag = true;
-
-            array_push($this -> flowPipe, $flowElement);
-			//echo "cdata-start ".$this -> semiStatefulDataFlow ."\n";
-            $this -> clearSemiStatefulDataFlow();
-
-            return true;
-        }
-		
-		else if($this -> is_cdata_end_tag($this -> semiStatefulDataFlow, $this -> hasCDataStartTag)){
-			$remainingCDataContent = substr($this -> semiStatefulDataFlow, 0, -strlen(CDATA_END_TAG));
-			
-			if(strlen($remainingCDataContent) > 0){
-				$remainingFlowContentElement = new FreeWord($remainingCDataContent);
-				array_push($this -> flowPipe, $remainingFlowContentElement);
-				//echo "freeword ".$remainingCDataContent ."\n";
-			}
-			
-            $flowElement = new CDataEndTag(CDATA_END_TAG);
-            $this -> hasCDataStartTag = false;
-            array_push($this -> flowPipe, $flowElement);
-			//echo "cdata-end "."]]>" ."\n";
-            $this -> clearSemiStatefulDataFlow();
-
             return true;
         }
 		
@@ -536,12 +592,79 @@ class FlowController {
 				because some parts of the forbidden tag will not be included in the current flow since we catch that in the future senses.
 				so we need to check the future flow again against forbidden tag rules in here.
 			*/
-			if(!$this -> flowContainsForbiddenSequence($this -> semiStatefulDataFlowFuture, $reachedEndOfTheFlow)){
+			if(!$this -> textFlowContainsForbiddenSequence($this -> semiStatefulDataFlowFuture)){
 				$flowElement = new FreeWord($this -> semiStatefulDataFlow);
 				array_push($this -> flowPipe, $flowElement);
 				
 				//echo "freeword ".$this -> semiStatefulDataFlow ."\n";
 				$this -> clearSemiStatefulDataFlow();
+				return true;
+			}
+        }
+		
+		else if($this -> is_comment_start_tag($this -> semiStatefulDataFlow, $this -> hasCommentStartTag)){
+            $flowElement = new CommentStartTag($this -> semiStatefulDataFlow);
+            $this -> hasCommentStartTag = true;
+
+            array_push($this -> flowPipe, $flowElement);
+			//echo "comment-start '".$this -> semiStatefulDataFlow ."'\n";
+            $this -> clearSemiStatefulDataFlow();
+
+            return true;
+        }
+		
+		else if($this -> is_comment_end_tag($this -> semiStatefulDataFlow, $this -> hasCommentStartTag)){
+
+			$remainingCommentContent = substr($this -> semiStatefulDataFlow, 0, -strlen(COMMENT_END_TAG));
+		
+			if(!$this -> commentFlowContainsForbiddenSequence($remainingCommentContent)){
+				
+				if(strlen($remainingCommentContent) > 0){
+					$remainingFlowContentElement = new FreeWord($remainingCommentContent);
+					array_push($this -> flowPipe, $remainingFlowContentElement);
+					//echo "freeword ".$remainingCommentContent ."\n";
+				}
+				
+				$flowElement = new CommentEndTag(COMMENT_END_TAG);
+				$this -> hasCommentStartTag = false;
+				array_push($this -> flowPipe, $flowElement);
+				//echo "comment-end "."-->" ."\n";
+				$this -> clearSemiStatefulDataFlow();
+
+				return true;
+			}
+        }
+		
+		else if($this -> is_cdata_start_tag($this -> semiStatefulDataFlow, $this -> hasCDataStartTag)){
+          
+			$flowElement = new CDataStartTag($this -> semiStatefulDataFlow);
+            $this -> hasCDataStartTag = true;
+
+            array_push($this -> flowPipe, $flowElement);
+			//echo "cdata-start ".$this -> semiStatefulDataFlow ."\n";
+            $this -> clearSemiStatefulDataFlow();
+
+            return true;
+        }
+		
+		else if($this -> is_cdata_end_tag($this -> semiStatefulDataFlow, $this -> hasCDataStartTag)){
+
+			$remainingCDataContent = substr($this -> semiStatefulDataFlow, 0, -strlen(CDATA_END_TAG));
+		
+			if(!$this -> cDataFlowContainsForbiddenSequence($remainingCDataContent)){
+				
+				if(strlen($remainingCDataContent) > 0){
+					$remainingFlowContentElement = new FreeWord($remainingCDataContent);
+					array_push($this -> flowPipe, $remainingFlowContentElement);
+					//echo "freeword ".$remainingCDataContent ."\n";
+				}
+				
+				$flowElement = new CDataEndTag(CDATA_END_TAG);
+				$this -> hasCDataStartTag = false;
+				array_push($this -> flowPipe, $flowElement);
+				//echo "cdata-end "."]]>" ."\n";
+				$this -> clearSemiStatefulDataFlow();
+
 				return true;
 			}
         }
@@ -558,27 +681,27 @@ class FlowController {
     
     private function futureSensePossible($flow){
 
-		if($this -> is_comment_start_tag($flow, $this -> hasCommentStartTag)){
+		if($this -> appearsToBeCommentStartTag($flow, $this -> hasCommentStartTag)){
             return true;
         }
 		
-		if($this -> appearsToBeCommentFlow($flow, $this -> hasCommentStartTag) !== 2){
+		else if($this -> appearsToBeCommentEndTag($flow, $this -> hasCommentStartTag)){
             return true;
         }
 		
-		else if($this -> is_comment_end_tag($flow, $this -> hasCommentStartTag)){
+		else if($this -> appearsToBeCommentFlow($flow, $this -> hasCommentStartTag)){
             return true;
         }
 		
-		else if($this -> is_cdata_start_tag($flow, $this -> hasCDataStartTag)){
+		else if($this -> appearsToBeCDataStartTag($flow, $this -> hasCDataStartTag)){
             return true;
         }
 		
-		else if($this -> appearsToBeCDataFlow($flow, $this -> hasCDataStartTag) !== 2){
+		else if($this -> appearsToBeCDataEndTag($flow, $this -> hasCDataStartTag)){
             return true;
         }
 		
-		else if($this -> is_cdata_end_tag($flow, $this -> hasCDataStartTag)){
+		else if($this -> appearsToBeCDataFlow($flow, $this -> hasCDataStartTag)){
             return true;
         }
 		
@@ -724,10 +847,19 @@ class FlowController {
         return  strpos($flow, START_START_TAG) === false 
              && strpos($flow, END_START_TAG) === false
 			 && strpos($flow, ESCAPE_START_TAG) === false
-			 && !$this -> flowContainsForbiddenSequence($flow, false);
+			 && !$this -> textFlowContainsForbiddenSequence($flow);
     }
 
-	private function flowContainsForbiddenSequence($flow, $reachedEndOfTheFlow){
+	private function textFlowContainsForbiddenSequence($flow){
+		return strpos($flow, CDATA_END_TAG) !== false;
+	}
+	
+	private function commentFlowContainsForbiddenSequence($flow){
+		return strpos($flow, DOUBLE_HYPEN) !== false
+			|| substr($flow, -1) === "-";
+	}
+	
+	private function cDataFlowContainsForbiddenSequence($flow){
 		return strpos($flow, CDATA_END_TAG) !== false;
 	}
 	
@@ -750,13 +882,12 @@ class FlowController {
 	private function appearsToBeTextFlow($flow, $hasCommentStartTag, $hasCDataStartTag, $hasStartEndTag, $hasEndEndTag, 
 												$hasXMLEndTag, $hasEscapeStartTag
 												){
-		return $hasCDataStartTag || $hasCommentStartTag 
-			 || (
-					 (!$hasEscapeStartTag && ($hasStartEndTag || $hasEndEndTag || $hasXMLEndTag)) && $this -> flowValidToBeTextFlow($flow) 
-					
-					//|| ($hasQuote && $this -> flowValidToBeAttributeValue($flow)) 
-						
-				);
+		return !$hasCommentStartTag
+			&& !$hasCDataStartTag
+			&& !$hasEscapeStartTag
+			&& !$hasXMLEndTag
+			&& ($hasStartEndTag || $hasEndEndTag/* || $hasXMLEndTag*/)
+			&& $this -> flowValidToBeTextFlow($flow);
     }
 	
 	private function appearsToBeAttributeTextFlow($flow, $hasQuote, $hasEscapeStartTag){
@@ -765,26 +896,11 @@ class FlowController {
 	
 	private function appearsToBeCommentFlow($flow, $hasCommentStartTag){
 
-		$commentStartTagLength = strlen(COMMENT_START_TAG);
-		$commentEndTagLength = strlen(COMMENT_END_TAG);
-		$flowDataLength = strlen($flow);
-
-		if(!$hasCommentStartTag){
-			$i = 0;
-			$k = max($flowDataLength - strlen(COMMENT_START_TAG), 0);
-			for( ; $i < $commentStartTagLength && $k < $flowDataLength; $i++, $k++){
-				if($flow[$k] !== COMMENT_START_TAG[$i]){
-					break;
-				}
-			}
+		/*if($hasCommentStartTag){
 			
-			if($i === $commentStartTagLength || $k === $flowDataLength){
-				//echo " '" . $flow ."'\n";
-				return 0;
-			}
-		}
-		else{
-			//echo "flw:" .$flow. "\n";
+			$commentEndTagLength = strlen(COMMENT_END_TAG);
+			$flowDataLength = strlen($flow);
+
 			$i = 0;
 			$k = max($flowDataLength - strlen(COMMENT_END_TAG), 0);
 	
@@ -794,43 +910,31 @@ class FlowController {
 				}
 			}
 
-			if($flowDataLength < strlen(COMMENT_END_TAG)){
-				return 1;
+			if(strpos($flow, DOUBLE_HYPEN) !== false){
+				return false;
+			}
+			else if($flowDataLength < strlen(COMMENT_END_TAG)){
+				return true;
 			}
 			else if($i === $commentEndTagLength){
-				return 1;
+				return true;
 			}
 			else if(strpos($flow, COMMENT_END_TAG) === false){
-				return 1;
+				return true;
 			}
 		}
+
+		return false;*/
 		
-		//echo "cmnt:" . $flow .".". $flowDataLength.  "\n";
-		
-		return 2;
+		return $hasCommentStartTag 
+			&& strpos($flow, DOUBLE_HYPEN) === false
+			&& !$this -> appearsToBeCommentEndTag($flow, $hasCommentStartTag)
+			&& strpos($flow, COMMENT_END_TAG) === false;
     }
 	
 	private function appearsToBeCDataFlow($flow, $hasCDataStartTag){
 
-		if(!$hasCDataStartTag){
-			
-			$cdataStartTagLength = strlen(CDATA_START_TAG);
-			$flowDataLength = strlen($flow);
-			
-			$i = 0;
-			$k = max($flowDataLength - strlen(CDATA_START_TAG), 0);
-			
-			for( ; $i < $cdataStartTagLength && $k < $flowDataLength; $i++, $k++){
-				if(strtolower($flow[$k]) !== CDATA_START_TAG[$i]){
-					break;
-				}
-			}
-			
-			if($i === $cdataStartTagLength || $k === $flowDataLength){
-				return 0;
-			}
-		}
-		else{
+		/*if($hasCDataStartTag){
 			
 			$cdataEndTagLength = strlen(CDATA_END_TAG);
 			$flowDataLength = strlen($flow);
@@ -845,17 +949,21 @@ class FlowController {
 			}
 
 			if($flowDataLength < strlen(CDATA_END_TAG)){
-				return 1;
+				return true;
 			}
 			else if($i === $cdataEndTagLength){
-				return 1;
+				return true;
 			}
 			else if(strpos($flow, CDATA_END_TAG) === false){
-				return 1;
+				return true;
 			}
 		}
 
-		return 2;
+		return false;*/
+		
+		return $hasCDataStartTag
+			&& !$this -> appearsToBeCDataEndTag($flow, $hasCDataStartTag)
+			&& strpos($flow, CDATA_END_TAG) === false;	
     }
 	
 	private function internalFinalize(){

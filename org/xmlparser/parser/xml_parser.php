@@ -4,7 +4,7 @@ namespace org\xmlparser\parser;
 define('__ROOT__', dirname(__FILE__));
 
 define("LIBRARY_NAME", "xmlparser");
-define("LIBRARY_VERSION", "1.2");
+define("LIBRARY_VERSION", "1.3");
 
 require_once __ROOT__ . "/flow/controller/flow_controller.php";
 require_once __ROOT__ . "/flow/controller/flow_pipe_controller.php";
@@ -62,7 +62,7 @@ class XMLParser {
 		echo "flow pipe element count: " . $pipeElementCount . "\n";
 		
 		for($i = 0; $i < $pipeElementCount; $i++){
-			echo "flow pipe: " . get_class($flowPipe[$i]) . " " . $flowPipe[$i] -> getValue() . "\n";
+			echo "flow pipe: " . get_class($flowPipe[$i]) . " " . "`" . $flowPipe[$i] -> getValue() . "`" . "\n";
 		}
 		
 		if($pipeElementCount == 0){
